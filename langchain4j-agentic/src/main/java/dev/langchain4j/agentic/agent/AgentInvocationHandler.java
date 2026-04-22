@@ -14,6 +14,9 @@ import dev.langchain4j.agentic.planner.AgenticSystemConfigurationException;
 import dev.langchain4j.agentic.planner.AgenticSystemTopology;
 import dev.langchain4j.agentic.planner.Planner;
 import dev.langchain4j.agentic.scope.AgenticScope;
+import dev.langchain4j.agentic.observability.AgentInvocationError;
+import dev.langchain4j.agentic.observability.AgentRequest;
+import dev.langchain4j.agentic.observability.AgentResponse;
 import dev.langchain4j.agentic.scope.DefaultAgenticScope;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -22,6 +25,7 @@ import dev.langchain4j.observability.api.event.AiServiceResponseReceivedEvent;
 import dev.langchain4j.observability.api.listener.AiServiceListener;
 import dev.langchain4j.observability.api.listener.AiServiceResponseReceivedListener;
 import dev.langchain4j.service.AiServiceContext;
+import dev.langchain4j.service.ParameterNameResolver;
 import dev.langchain4j.service.memory.ChatMemoryAccess;
 import dev.langchain4j.service.memory.ChatMemoryService;
 import org.slf4j.Logger;
@@ -31,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +43,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static dev.langchain4j.agentic.observability.ComposedAgentListener.composeWithInherited;
 import static dev.langchain4j.agentic.observability.ComposedAgentListener.listenerOfType;
+import static dev.langchain4j.agentic.observability.ListenerNotifierUtil.afterAgentInvocation;
+import static dev.langchain4j.agentic.observability.ListenerNotifierUtil.beforeAgentInvocation;
 import static dev.langchain4j.agentic.scope.DefaultAgenticScope.ephemeralAgenticScope;
 
 public class AgentInvocationHandler implements InvocationHandler, InternalAgent {
@@ -157,17 +164,48 @@ public class AgentInvocationHandler implements InvocationHandler, InternalAgent 
         }
 
         AgenticScope agenticScope = LangChain4jManaged.current(AgenticScope.class);
+        boolean ephemeralScope = false;
         if (agenticScope == null) {
             LOGGER.warn("Improper invocation of a standalone agent outside of an agentic system, consider using AiServices instead.");
-            LangChain4jManaged.setCurrent(Map.of(AgenticScope.class, ephemeralAgenticScope()));
+            agenticScope = ephemeralAgenticScope();
+            LangChain4jManaged.setCurrent(Map.of(AgenticScope.class, agenticScope));
+            ephemeralScope = true;
         }
+        Object result = null;
         try {
-            return method.invoke(agent, args);
+            Map<String, Object> namedArgs = argToMap(method, args);
+            beforeAgentInvocation(agentListener, agenticScope, this, namedArgs);
+            result = method.invoke(agent, args);
+            afterAgentInvocation(agentListener, agenticScope, this, namedArgs, result);
+            return result;
+        } catch (Exception e) {
+            // Notify error listener if available
+            if (agentListener != null) {
+                try {
+                    agentListener.onAgentInvocationError(
+                            new AgentInvocationError(agenticScope, this, argToMap(method, args), e));
+                } catch (Exception ignored) {
+                    // Log error but don't mask the original exception
+                }
+            }
+            throw e;
         } finally {
-            if (agenticScope == null) {
+            if (ephemeralScope) {
                 LangChain4jManaged.removeCurrent();
             }
         }
+    }
+
+    private static Map<String, Object> argToMap(Method method, Object[] args) {
+        if (args == null || args.length == 0) {
+            return Map.of();
+        }
+        Map<String, Object> namedArgs = new HashMap<>();
+        for (int i = 0; i < args.length; i++) {
+            String name = ParameterNameResolver.name(method.getParameters()[i]);
+            namedArgs.put(name, args[i]);
+        }
+        return namedArgs;
     }
 
     private static Optional<UserMessage> lastUserMessage(Collection<ChatMessage> messages) {
