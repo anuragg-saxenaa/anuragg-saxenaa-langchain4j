@@ -26,13 +26,16 @@ import org.slf4j.LoggerFactory;
 class ChromaHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(ChromaHttpClient.class);
+    private static final String CHROMA_TOKEN_HEADER = "X-Chroma-Token";
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
+    private final String apiKey;
 
-    public ChromaHttpClient(String baseUrl, Duration timeout, boolean logRequests, boolean logResponses) {
+    public ChromaHttpClient(String baseUrl, Duration timeout, boolean logRequests, boolean logResponses, String apiKey) {
         this.baseUrl = Utils.ensureTrailingForwardSlash(baseUrl);
+        this.apiKey = apiKey;
         dev.langchain4j.http.client.HttpClientBuilder httpClientBuilder =
                 dev.langchain4j.http.client.HttpClientBuilderLoader.loadHttpClientBuilder();
         // Configure HTTP/1.1 for Chroma compatibility if using JDK HTTP client
@@ -72,11 +75,14 @@ class ChromaHttpClient {
     public <T> T get(String path, Class<T> responseType, Map<String, String> pathParams) throws IOException {
         String url = buildUrl(path, pathParams);
 
-        HttpRequest request = HttpRequest.builder()
+        HttpRequest.Builder requestBuilder = HttpRequest.builder()
                 .method(HttpMethod.GET)
                 .url(url)
-                .addHeader("Content-Type", "application/json")
-                .build();
+                .addHeader("Content-Type", "application/json");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            requestBuilder.addHeader(CHROMA_TOKEN_HEADER, apiKey);
+        }
+        HttpRequest request = requestBuilder.build();
 
         return executeRequest(request, responseType);
     }
@@ -90,12 +96,15 @@ class ChromaHttpClient {
         String url = buildUrl(path, pathParams);
         String jsonBody = objectMapper.writeValueAsString(requestBody);
 
-        HttpRequest request = HttpRequest.builder()
+        HttpRequest.Builder requestBuilder = HttpRequest.builder()
                 .method(HttpMethod.POST)
                 .url(url)
                 .addHeader("Content-Type", "application/json")
-                .body(jsonBody)
-                .build();
+                .body(jsonBody);
+        if (apiKey != null && !apiKey.isEmpty()) {
+            requestBuilder.addHeader(CHROMA_TOKEN_HEADER, apiKey);
+        }
+        HttpRequest request = requestBuilder.build();
 
         return executeRequest(request, responseType);
     }
@@ -107,11 +116,14 @@ class ChromaHttpClient {
     public void delete(String path, Map<String, String> pathParams) throws IOException {
         String url = buildUrl(path, pathParams);
 
-        HttpRequest request = HttpRequest.builder()
+        HttpRequest.Builder requestBuilder = HttpRequest.builder()
                 .method(HttpMethod.DELETE)
                 .url(url)
-                .addHeader("Content-Type", "application/json")
-                .build();
+                .addHeader("Content-Type", "application/json");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            requestBuilder.addHeader(CHROMA_TOKEN_HEADER, apiKey);
+        }
+        HttpRequest request = requestBuilder.build();
 
         executeRequest(request, Void.class);
     }

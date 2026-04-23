@@ -51,6 +51,7 @@ import dev.langchain4j.model.openai.OpenAiTokenUsage;
 import dev.langchain4j.model.openai.OpenAiTokenUsage.InputTokensDetails;
 import dev.langchain4j.model.openai.OpenAiTokenUsage.OutputTokensDetails;
 import dev.langchain4j.model.openai.internal.chat.AssistantMessage;
+import dev.langchain4j.model.openai.internal.chat.ChatCompletionChoice;
 import dev.langchain4j.model.openai.internal.chat.ChatCompletionRequest;
 import dev.langchain4j.model.openai.internal.chat.ChatCompletionResponse;
 import dev.langchain4j.model.openai.internal.chat.ContentType;
@@ -348,34 +349,55 @@ public class OpenAiUtils {
     }
 
     public static AiMessage aiMessageFrom(ChatCompletionResponse response, boolean returnThinking) {
-        AssistantMessage assistantMessage = response.choices().get(0).message();
+        // Some OpenAI-compatible providers return multiple choices, e.g. text in choices[0] and tool_calls in choices[1].
+        // We must not silently drop tool_calls from later choices.
+        // Strategy: take content/refusal/reasoning from the first choice that has them;
+        // merge tool_calls from every choice that has them.
 
-        String refusal = assistantMessage.refusal();
+        String refusal = null;
+        String content = null;
+        String reasoningContent = null;
+        List<ToolExecutionRequest> toolExecutionRequests = new ArrayList<>();
+
+        for (ChatCompletionChoice choice : response.choices()) {
+            AssistantMessage msg = choice.message();
+
+            if (refusal == null) {
+                String r = msg.refusal();
+                if (isNotNullOrBlank(r)) {
+                    refusal = r;
+                }
+            }
+
+            if (content == null && isNotNullOrBlank(msg.content())) {
+                content = msg.content();
+            }
+
+            if (returnThinking && reasoningContent == null && isNotNullOrBlank(msg.reasoningContent())) {
+                reasoningContent = msg.reasoningContent();
+            }
+
+            List<ToolCall> calls = msg.toolCalls();
+            if (calls != null) {
+                for (ToolCall tc : calls) {
+                    if (tc.type() == FUNCTION) {
+                        toolExecutionRequests.add(toolExecutionRequestFrom(tc));
+                    }
+                }
+            }
+
+            // legacy function_call field
+            FunctionCall fc = msg.functionCall();
+            if (fc != null) {
+                toolExecutionRequests.add(ToolExecutionRequest.builder()
+                        .name(fc.name())
+                        .arguments(fc.arguments())
+                        .build());
+            }
+        }
+
         if (isNotNullOrBlank(refusal)) {
             throw new ContentFilteredException(refusal);
-        }
-
-        String content = assistantMessage.content();
-
-        String reasoningContent = null;
-        if (returnThinking) {
-            reasoningContent = assistantMessage.reasoningContent();
-        }
-
-        List<ToolExecutionRequest> toolExecutionRequests =
-                getOrDefault(assistantMessage.toolCalls(), List.of()).stream()
-                        .filter(toolCall -> toolCall.type() == FUNCTION)
-                        .map(OpenAiUtils::toToolExecutionRequest)
-                        .collect(toList());
-
-        // legacy
-        FunctionCall functionCall = assistantMessage.functionCall();
-        if (functionCall != null) {
-            ToolExecutionRequest toolExecutionRequest = ToolExecutionRequest.builder()
-                    .name(functionCall.name())
-                    .arguments(functionCall.arguments())
-                    .build();
-            toolExecutionRequests.add(toolExecutionRequest);
         }
 
         return AiMessage.builder()
@@ -385,7 +407,7 @@ public class OpenAiUtils {
                 .build();
     }
 
-    private static ToolExecutionRequest toToolExecutionRequest(ToolCall toolCall) {
+    private static ToolExecutionRequest toolExecutionRequestFrom(ToolCall toolCall) {
         FunctionCall functionCall = toolCall.function();
         return ToolExecutionRequest.builder()
                 .id(toolCall.id())

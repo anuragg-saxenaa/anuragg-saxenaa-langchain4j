@@ -22,7 +22,8 @@ class ChromaClientV2 implements ChromaClient {
                 Utils.ensureTrailingForwardSlash(builder.baseUrl),
                 builder.timeout,
                 builder.logRequests,
-                builder.logResponses);
+                builder.logResponses,
+                builder.apiKey);
 
         this.chromaApi = new ChromaApiV2Impl(httpClient);
     }
@@ -35,6 +36,7 @@ class ChromaClientV2 implements ChromaClient {
         private boolean logResponses;
         private String tenantName;
         private String databaseName;
+        private String apiKey;
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
@@ -63,6 +65,11 @@ class ChromaClientV2 implements ChromaClient {
 
         public Builder databaseName(String databaseName) {
             this.databaseName = databaseName;
+            return this;
+        }
+
+        public Builder apiKey(String apiKey) {
+            this.apiKey = apiKey;
             return this;
         }
 

@@ -21,11 +21,13 @@ public class AiServiceTool {
     private final ToolSpecification toolSpecification;
     private final ToolExecutor toolExecutor;
     private final boolean immediateReturn;
+    private final boolean immediateIfLastReturn;
 
     private AiServiceTool(Builder builder) {
         this.toolSpecification = ensureNotNull(builder.toolSpecification, "toolSpecification");
         this.toolExecutor = ensureNotNull(builder.toolExecutor, "toolExecutor");
         this.immediateReturn = builder.immediateReturn;
+        this.immediateIfLastReturn = builder.immediateIfLastReturn;
     }
 
     public ToolSpecification toolSpecification() {
@@ -40,6 +42,16 @@ public class AiServiceTool {
         return immediateReturn;
     }
 
+
+    /**
+     * Returns {@code true} if this tool is configured with {@link dev.langchain4j.agent.tool.ReturnBehavior#IMMEDIATE_IF_LAST}.
+     *
+     * @since 1.14.0
+     */
+    public boolean immediateIfLastReturn() {
+        return immediateIfLastReturn;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -49,6 +61,7 @@ public class AiServiceTool {
         private ToolSpecification toolSpecification;
         private ToolExecutor toolExecutor;
         private boolean immediateReturn;
+        private boolean immediateIfLastReturn;
 
         public Builder toolSpecification(ToolSpecification toolSpecification) {
             this.toolSpecification = toolSpecification;
@@ -62,6 +75,16 @@ public class AiServiceTool {
 
         public Builder immediateReturn(boolean immediateReturn) {
             this.immediateReturn = immediateReturn;
+            return this;
+        }
+
+        /**
+         * Sets whether this tool is configured with {@link dev.langchain4j.agent.tool.ReturnBehavior#IMMEDIATE_IF_LAST}.
+         *
+         * @since 1.14.0
+         */
+        public Builder immediateIfLastReturn(boolean immediateIfLastReturn) {
+            this.immediateIfLastReturn = immediateIfLastReturn;
             return this;
         }
 

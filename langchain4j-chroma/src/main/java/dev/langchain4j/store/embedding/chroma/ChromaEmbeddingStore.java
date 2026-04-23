@@ -43,14 +43,17 @@ public class ChromaEmbeddingStore implements EmbeddingStore<TextSegment> {
         this.collectionName = getOrDefault(builder.collectionName, "default");
         ChromaApiVersion apiVersion = Utils.getOrDefault(builder.apiVersion, V1);
 
-        if (apiVersion == V1) {
+        if (builder.chromaClient != null) {
+            // Use pre-configured client (OSGi-friendly, allows full customization)
+            this.chromaClient = builder.chromaClient;
+        } else if (apiVersion == V1) {
             this.chromaClient = new ChromaClientV1.Builder()
                     .baseUrl(builder.baseUrl)
                     .timeout(getOrDefault(builder.timeout, ofSeconds(5)))
                     .logRequests(builder.logRequests)
                     .logResponses(builder.logResponses)
+                    .apiKey(builder.apiKey)
                     .build();
-
         } else {
             ChromaClientV2 chromaClientV2 = new ChromaClientV2.Builder()
                     .baseUrl(builder.baseUrl)
@@ -59,6 +62,7 @@ public class ChromaEmbeddingStore implements EmbeddingStore<TextSegment> {
                     .timeout(getOrDefault(builder.timeout, ofSeconds(5)))
                     .logRequests(builder.logRequests)
                     .logResponses(builder.logResponses)
+                    .apiKey(builder.apiKey)
                     .build();
             createTenantAndDbIfNotExists(chromaClientV2);
             this.chromaClient = chromaClientV2;
@@ -101,16 +105,32 @@ public class ChromaEmbeddingStore implements EmbeddingStore<TextSegment> {
     public static class Builder {
 
         private ChromaApiVersion apiVersion;
+        private ChromaClient chromaClient;
         private String baseUrl;
         private String tenantName;
         private String databaseName;
         private String collectionName;
+        private String apiKey;
         private Duration timeout;
         private boolean logRequests;
         private boolean logResponses;
 
         public Builder apiVersion(ChromaApiVersion apiVersion) {
             this.apiVersion = apiVersion;
+            return this;
+        }
+
+        /**
+         * Allows provision of a pre-configured {@link ChromaClient}.
+         * This is useful in OSGi environments where the default ServiceLoader-based
+         * client creation may not work, or when full control over the client
+         * configuration (e.g., custom HTTP client) is required.
+         *
+         * @param chromaClient A pre-configured {@link ChromaClient} instance.
+         * @return builder
+         */
+        public Builder chromaClient(ChromaClient chromaClient) {
+            this.chromaClient = chromaClient;
             return this;
         }
 
@@ -150,6 +170,16 @@ public class ChromaEmbeddingStore implements EmbeddingStore<TextSegment> {
          */
         public Builder collectionName(String collectionName) {
             this.collectionName = collectionName;
+            return this;
+        }
+
+        /**
+         * @param apiKey The API key (Bearer token) for authenticating with the Chroma service.
+         *               The token is sent as the {@code X-Chroma-Token} header.
+         * @return builder
+         */
+        public Builder apiKey(String apiKey) {
+            this.apiKey = apiKey;
             return this;
         }
 

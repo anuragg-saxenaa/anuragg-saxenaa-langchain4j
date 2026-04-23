@@ -9,6 +9,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.format.DateTimeParseException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,6 +73,51 @@ class DateOutputParserTest {
                 .isExactlyInstanceOf(OutputParsingException.class)
                 .hasMessageContainingAll("Cannot parse", input, "into java.util.Date")
                 .hasCauseExactlyInstanceOf(DateTimeParseException.class);
+    }
+
+    @Test
+    void should_be_thread_safe() throws Exception {
+        // given
+        DateOutputParser sharedParser = new DateOutputParser();
+        String[] dates = {"2024-01-15", "2000-12-31", "1999-06-01", "2023-07-20", "2021-03-10"};
+        int threads = 20;
+        int iterations = 100;
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threads);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger errorCount = new AtomicInteger(0);
+
+        // when
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        for (int t = 0; t < threads; t++) {
+            final int threadIndex = t;
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    for (int i = 0; i < iterations; i++) {
+                        String date = dates[(threadIndex + i) % dates.length];
+                        try {
+                            Date result = sharedParser.parse(date);
+                            if (result != null) successCount.incrementAndGet();
+                        } catch (Exception e) {
+                            errorCount.incrementAndGet();
+                        }
+                    }
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+        startLatch.countDown();
+        boolean completed = doneLatch.await(30, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // then
+        assertThat(completed).isTrue();
+        assertThat(errorCount.get()).isZero();
+        assertThat(successCount.get()).isEqualTo(threads * iterations);
     }
 
     @Test

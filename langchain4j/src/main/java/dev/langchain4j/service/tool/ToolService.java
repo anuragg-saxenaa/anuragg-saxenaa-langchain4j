@@ -71,6 +71,7 @@ public class ToolService {
     private final List<ToolSpecification> toolSpecifications = new ArrayList<>();
     private final Map<String, ToolExecutor> toolExecutors = new HashMap<>();
     private final Set<String> immediateReturnTools = new HashSet<>();
+    private final Set<String> immediateIfLastReturnTools = new HashSet<>();
     private final Set<ToolProvider> toolProviders = new LinkedHashSet<>();
     private Executor executor;
     private int maxSequentialToolsInvocations = 100;
@@ -115,6 +116,15 @@ public class ToolService {
         immediateReturnTools.addAll(immediateReturnToolNames);
     }
 
+    public void tools(Map<ToolSpecification, ToolExecutor> tools, Set<String> immediateReturnToolNames,
+                      Set<String> immediateIfLastReturnToolNames) {
+        this.tools(tools);
+        immediateReturnTools.addAll(immediateReturnToolNames);
+        if (immediateIfLastReturnToolNames != null) {
+            immediateIfLastReturnTools.addAll(immediateIfLastReturnToolNames);
+        }
+    }
+
     public void tools(Collection<Object> objectsWithTools) {
         for (Object objectWithTools : objectsWithTools) {
             for (AiServiceTool tool : findTools(objectWithTools)) {
@@ -126,6 +136,9 @@ public class ToolService {
                 toolExecutors.put(toolName, tool.toolExecutor());
                 if (tool.immediateReturn()) {
                     immediateReturnTools.add(toolName);
+                }
+                if (tool.immediateIfLastReturn()) {
+                    immediateIfLastReturnTools.add(toolName);
                 }
             }
         }
@@ -170,6 +183,7 @@ public class ToolService {
                         .toolSpecification(toolSpecificationFrom(toolMethod))
                         .toolExecutor(createToolExecutor(objectWithTools, toolMethod))
                         .immediateReturn(toolMethod.getAnnotation(Tool.class).returnBehavior() == ReturnBehavior.IMMEDIATE)
+                        .immediateIfLastReturn(toolMethod.getAnnotation(Tool.class).returnBehavior() == ReturnBehavior.IMMEDIATE_IF_LAST)
                         .build());
             }
         }
@@ -280,12 +294,14 @@ public class ToolService {
                     .availableTools(this.toolSpecifications)
                     .toolExecutors(this.toolExecutors)
                     .immediateReturnTools(this.immediateReturnTools)
+                    .immediateIfLastReturnTools(this.immediateIfLastReturnTools)
                     .build();
         }
 
         List<ToolSpecification> toolSpecifications = new ArrayList<>(this.toolSpecifications);
         Map<String, ToolExecutor> toolExecutors = new HashMap<>(this.toolExecutors);
         Set<String> immediateReturnTools = new HashSet<>(this.immediateReturnTools);
+        Set<String> immediateIfLastReturnTools = new HashSet<>(this.immediateIfLastReturnTools);
         List<ToolProvider> dynamicToolProviders = new ArrayList<>();
 
         ToolProviderRequest toolProviderRequest = ToolProviderRequest.builder()
@@ -312,6 +328,9 @@ public class ToolService {
                 if (toolProviderResult.immediateReturnToolNames() != null) {
                     immediateReturnTools.addAll(toolProviderResult.immediateReturnToolNames());
                 }
+                if (toolProviderResult.immediateIfLastReturnToolNames() != null) {
+                    immediateIfLastReturnTools.addAll(toolProviderResult.immediateIfLastReturnToolNames());
+                }
             }
         });
 
@@ -320,6 +339,7 @@ public class ToolService {
                 .availableTools(toolSpecifications)
                 .toolExecutors(toolExecutors)
                 .immediateReturnTools(immediateReturnTools)
+                .immediateIfLastReturnTools(immediateIfLastReturnTools)
                 .dynamicToolProviders(dynamicToolProviders)
                 .build();
     }
@@ -364,9 +384,11 @@ public class ToolService {
             Map<ToolExecutionRequest, ToolExecutionResult> toolResults =
                     execute(aiMessage.toolExecutionRequests(), toolServiceContext.toolExecutors(), invocationContext);
 
-            boolean immediateToolReturn = true;
+            boolean hasImmediateTool = false;
+            ToolExecutionRequest lastRequest = null;
             for (Map.Entry<ToolExecutionRequest, ToolExecutionResult> entry : toolResults.entrySet()) {
                 ToolExecutionRequest request = entry.getKey();
+                lastRequest = request;
                 ToolExecutionResult result = entry.getValue();
                 ToolExecutionResultMessage resultMessage = toResultMessage(request, result);
 
@@ -385,24 +407,36 @@ public class ToolService {
                     messages.add(resultMessage);
                 }
 
-                if (immediateToolReturn) {
-                    if (toolServiceContext.immediateReturnTools().contains(request.name())) {
-                        if (!isReturnTypeResult) {
-                            throw illegalConfiguration(
-                                    "Tool '%s' with immediate return is not allowed on a AI service not returning Result.",
-                                    request.name());
-                        }
-                    } else {
-                        immediateToolReturn = false;
-                    }
+                if (toolServiceContext.immediateReturnTools().contains(request.name())) {
+                    hasImmediateTool = true;
                 }
             }
 
-            if (immediateToolReturn) {
+            // IMMEDIATE behavior takes priority - return immediately if any tool has IMMEDIATE
+            if (hasImmediateTool) {
+                if (!isReturnTypeResult) {
+                    throw illegalConfiguration("Tool with immediate return is not allowed on an AI service not returning Result.");
+                }
                 ChatResponse finalResponse = intermediateResponses.remove(intermediateResponses.size() - 1);
                 return ToolServiceResult.builder()
                         .intermediateResponses(intermediateResponses)
                         .finalResponse(finalResponse)
+                        .toolExecutions(toolExecutions)
+                        .aggregateTokenUsage(aggregateTokenUsage)
+                        .immediateToolReturn(true)
+                        .build();
+            }
+
+            // Check if the last tool in this batch has IMMEDIATE_IF_LAST behavior
+            if (lastRequest != null
+                    && toolServiceContext.immediateIfLastReturnTools().contains(lastRequest.name())) {
+                if (!isReturnTypeResult) {
+                    throw illegalConfiguration("Tool '%s' with IMMEDIATE_IF_LAST return is not allowed on an AI service not returning Result.", lastRequest.name());
+                }
+                intermediateResponses.remove(intermediateResponses.size() - 1);
+                return ToolServiceResult.builder()
+                        .intermediateResponses(intermediateResponses)
+                        .finalResponse(chatResponse)
                         .toolExecutions(toolExecutions)
                         .aggregateTokenUsage(aggregateTokenUsage)
                         .immediateToolReturn(true)
@@ -479,6 +513,7 @@ public class ToolService {
         List<ToolSpecification> newAvailableTools = new ArrayList<>(toolServiceContext.availableTools());
         Map<String, ToolExecutor> newToolExecutors = new HashMap<>(toolServiceContext.toolExecutors());
         Set<String> newImmediateReturnTools = new HashSet<>(toolServiceContext.immediateReturnTools());
+        Set<String> newImmediateIfLastReturnTools = new HashSet<>(toolServiceContext.immediateIfLastReturnTools());
         boolean changed = false;
 
         for (ToolProvider dynamicProvider : dynamicProviders) {
@@ -494,6 +529,7 @@ public class ToolService {
                     }
                 }
                 newImmediateReturnTools.addAll(result.immediateReturnToolNames());
+                newImmediateIfLastReturnTools.addAll(result.immediateIfLastReturnToolNames());
             }
         }
 
@@ -506,6 +542,7 @@ public class ToolService {
                 .availableTools(newAvailableTools)
                 .toolExecutors(newToolExecutors)
                 .immediateReturnTools(newImmediateReturnTools)
+                .immediateIfLastReturnTools(newImmediateIfLastReturnTools)
                 .build();
     }
 

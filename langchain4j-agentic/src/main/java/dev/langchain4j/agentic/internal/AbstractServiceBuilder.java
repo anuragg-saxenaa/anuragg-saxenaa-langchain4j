@@ -117,7 +117,16 @@ public abstract class AbstractServiceBuilder<T, S> {
     }
 
     public S subAgents(Collection<?> agents) {
-        addSubagents(agentsToExecutors(agents));
+        List<Object> flattened = new ArrayList<>();
+        for (Object agent : agents) {
+            // If it's a List of Class<?>, flatten it so Class elements are treated individually
+            if (agent instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Class<?>) {
+                flattened.addAll(list);
+            } else {
+                flattened.add(agent);
+            }
+        }
+        addSubagents(agentsToExecutors(flattened));
         return (S) this;
     }
 

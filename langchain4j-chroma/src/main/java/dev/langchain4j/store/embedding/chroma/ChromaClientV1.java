@@ -15,7 +15,8 @@ class ChromaClientV1 implements ChromaClient {
                 Utils.ensureTrailingForwardSlash(builder.baseUrl),
                 builder.timeout,
                 builder.logRequests,
-                builder.logResponses);
+                builder.logResponses,
+                builder.apiKey);
 
         this.chromaApi = new ChromaApiImpl(httpClient);
     }
@@ -26,6 +27,7 @@ class ChromaClientV1 implements ChromaClient {
         private Duration timeout;
         private boolean logRequests;
         private boolean logResponses;
+        private String apiKey;
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
@@ -44,6 +46,11 @@ class ChromaClientV1 implements ChromaClient {
 
         public Builder logResponses(boolean logResponses) {
             this.logResponses = logResponses;
+            return this;
+        }
+
+        public Builder apiKey(String apiKey) {
+            this.apiKey = apiKey;
             return this;
         }
 
