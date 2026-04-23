@@ -208,6 +208,10 @@ class DefaultAiServices<T> extends AiServices<T> {
 
                         UserMessage userMessage = addContentsToUserMessage(method, args, userMessageForAugmentation);
 
+                        // Apply custom content injection steps (stage 3)
+                        userMessage = context.userMessageTransformationPipeline
+                                .applyContentInjectionSteps(userMessage, invocationContext);
+
                         var commonGuardrailParam = GuardrailRequestParams.builder()
                                 .chatMemory(chatMemory)
                                 .augmentationResult(augmentationResult)
@@ -219,6 +223,10 @@ class DefaultAiServices<T> extends AiServices<T> {
 
                         userMessage = invokeInputGuardrails(
                                 context.guardrailService(), method, userMessage, commonGuardrailParam);
+
+                        // Apply custom input guardrail rewriters (stage 4)
+                        userMessage = context.userMessageTransformationPipeline
+                                .applyInputGuardrailRewriters(userMessage, invocationContext);
 
                         Type returnType =
                                 context.returnType != null ? context.returnType : method.getGenericReturnType();

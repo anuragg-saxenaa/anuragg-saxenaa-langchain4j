@@ -794,6 +794,46 @@ public abstract class AiServices<T> {
     }
 
     /**
+     * Registers a custom content injection step in the user message transformation pipeline (stage 3).
+     * Content injection steps are applied after RAG augmentation and before input guardrails,
+     * allowing custom content (e.g. timestamps, metadata, contextual information) to be injected
+     * into {@link UserMessage}s.
+     * <p>
+     * Steps are applied in registration order. Each step receives the current {@link dev.langchain4j.data.message.UserMessage}
+     * and the {@link InvocationContext}, and returns a (potentially modified) {@link dev.langchain4j.data.message.UserMessage}.
+     *
+     * @param step the content injection step to register
+     * @return builder
+     * @see UserMessageTransformationPipeline
+     */
+    public AiServices<T> registerContentInjectionStep(
+            UserMessageTransformationPipeline.ContentInjectionStep step) {
+        context.userMessageTransformationPipeline =
+                context.userMessageTransformationPipeline.withContentInjectionStep(step);
+        return this;
+    }
+
+    /**
+     * Registers a custom input guardrail rewriter in the user message transformation pipeline (stage 4).
+     * Unlike {@link InputGuardrail} which may block/abort the request, guardrail rewriters always
+     * rewrite the message and return a (potentially modified) {@link UserMessage}.
+     * <p>
+     * Rewriters are applied in registration order, after content injection.
+     * Each rewriter receives the current {@link dev.langchain4j.data.message.UserMessage}
+     * and the {@link InvocationContext}, and returns a (potentially modified) {@link dev.langchain4j.data.message.UserMessage}.
+     *
+     * @param rewriter the input guardrail rewriter to register
+     * @return builder
+     * @see UserMessageTransformationPipeline
+     */
+    public AiServices<T> registerInputGuardrailRewriter(
+            UserMessageTransformationPipeline.InputGuardrailRewriter rewriter) {
+        context.userMessageTransformationPipeline =
+                context.userMessageTransformationPipeline.withInputGuardrailRewriter(rewriter);
+        return this;
+    }
+
+    /**
      * Registers an {@link AiServiceListener} listener for AI service events for this AI Service.
      *
      * @param listener the listener to be registered, must not be {@code null}
