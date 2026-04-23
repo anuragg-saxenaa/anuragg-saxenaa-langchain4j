@@ -105,6 +105,7 @@ public class AzureOpenAiStreamingChatModel implements StreamingChatModel {
     private final boolean strictJsonSchema;
     private final Integer maxCompletionTokens;
     private final ReasoningEffortValue reasoningEffort;
+    private final String promptCacheKey;
 
     private final List<ChatModelListener> listeners;
     private final Set<Capability> supportedCapabilities;
@@ -184,6 +185,7 @@ public class AzureOpenAiStreamingChatModel implements StreamingChatModel {
         this.strictJsonSchema = getOrDefault(builder.strictJsonSchema, false);
         this.maxCompletionTokens = builder.maxCompletionTokens;
         this.reasoningEffort = builder.reasoningEffort;
+        this.promptCacheKey = builder.promptCacheKey;
 
         this.listeners = copy(builder.listeners);
         this.supportedCapabilities = copy(builder.supportedCapabilities);
@@ -392,6 +394,7 @@ public class AzureOpenAiStreamingChatModel implements StreamingChatModel {
         private Map<String, String> customHeaders;
         private Set<Capability> supportedCapabilities;
         private ReasoningEffortValue reasoningEffort;
+        private String promptCacheKey;
 
         public Builder defaultRequestParameters(ChatRequestParameters parameters) {
             this.defaultRequestParameters = parameters;
@@ -609,6 +612,18 @@ public class AzureOpenAiStreamingChatModel implements StreamingChatModel {
 
         public Builder reasoningEffort(ReasoningEffortValue reasoningEffort) {
             this.reasoningEffort = reasoningEffort;
+            return this;
+        }
+
+        /**
+         * Sets the prompt cache key for Azure OpenAI prompt caching.
+         * When provided, the service will attempt to use cached prompts when available.
+         *
+         * @param promptCacheKey The prompt cache key
+         * @return builder
+         */
+        public Builder promptCacheKey(String promptCacheKey) {
+            this.promptCacheKey = promptCacheKey;
             return this;
         }
 
