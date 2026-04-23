@@ -15,6 +15,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.Content;
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.PdfFileContent;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.TextContent;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
@@ -86,6 +87,9 @@ class OpenAiResponsesClient {
     private static final String FIELD_DELTA = "delta";
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_IMAGE_URL = "image_url";
+    private static final String FIELD_FILE_URL = "file_url";
+    private static final String FIELD_FILE_DATA = "file_data";
+    private static final String FIELD_FILENAME = "filename";
     private static final String FIELD_DETAIL = "detail";
     private static final String FIELD_ITEM = "item";
     private static final String FIELD_ID = "id";
@@ -102,6 +106,8 @@ class OpenAiResponsesClient {
     private static final String FIELD_TOTAL_TOKENS = "total_tokens";
     private static final String FIELD_INPUT_TOKENS_DETAILS = "input_tokens_details";
     private static final String FIELD_CACHED_TOKENS = "cached_tokens";
+    private static final String FIELD_OUTPUT_TOKENS_DETAILS = "output_tokens_details";
+    private static final String FIELD_REASONING_TOKENS = "reasoning_tokens";
     private static final String FIELD_MODEL = "model";
     private static final String FIELD_INPUT = "input";
     private static final String FIELD_STREAM = "stream";
@@ -123,6 +129,9 @@ class OpenAiResponsesClient {
     private static final String FIELD_PROMPT_CACHE_RETENTION = "prompt_cache_retention";
     private static final String FIELD_REASONING = "reasoning";
     private static final String FIELD_EFFORT = "effort";
+    private static final String FIELD_SUMMARY = "summary";
+    private static final String FIELD_SUMMARY_TEXT = "summary_text";
+    private static final String FIELD_ENCRYPTED_CONTENT = "encrypted_content";
     private static final String FIELD_STRICT = "strict";
     private static final String FIELD_STREAM_OPTIONS = "stream_options";
     private static final String FIELD_INCLUDE_OBFUSCATION = "include_obfuscation";
@@ -134,18 +143,23 @@ class OpenAiResponsesClient {
     private static final String FIELD_CREATED_AT = "created_at";
     private static final String FIELD_COMPLETED_AT = "completed_at";
     private static final String DEFAULT_IMAGE_MIME_TYPE = "image/jpeg";
+    private static final String DEFAULT_PDF_FILENAME = "pdf_file";
 
     private static final String ROLE_SYSTEM = "system";
     private static final String ROLE_USER = "user";
     private static final String ROLE_ASSISTANT = "assistant";
 
+    static final String ENCRYPTED_REASONING_KEY = "encrypted_reasoning"; // do not change, will break backward compatibility!
+
     private static final String TYPE_FUNCTION = "function";
     private static final String TYPE_FUNCTION_CALL = "function_call";
     private static final String TYPE_MESSAGE = "message";
+    private static final String TYPE_REASONING = "reasoning";
     private static final String TYPE_OUTPUT_TEXT = "output_text";
     private static final String TYPE_OBJECT = "object";
     private static final String TYPE_INPUT_TEXT = "input_text";
     private static final String TYPE_INPUT_IMAGE = "input_image";
+    private static final String TYPE_INPUT_FILE = "input_file";
     private static final String TYPE_FUNCTION_CALL_OUTPUT = "function_call_output";
     private static final String TYPE_JSON_OBJECT = "json_object";
     private static final String TYPE_JSON_SCHEMA = "json_schema";
@@ -264,9 +278,14 @@ class OpenAiResponsesClient {
             payload.put(FIELD_PROMPT_CACHE_RETENTION, parameters.promptCacheRetention());
         }
 
-        if (parameters.reasoningEffort() != null) {
+        if (parameters.reasoningEffort() != null || parameters.reasoningSummary() != null) {
             Map<String, Object> reasoning = new LinkedHashMap<>();
-            reasoning.put(FIELD_EFFORT, parameters.reasoningEffort());
+            if (parameters.reasoningEffort() != null) {
+                reasoning.put(FIELD_EFFORT, parameters.reasoningEffort());
+            }
+            if (parameters.reasoningSummary() != null) {
+                reasoning.put(FIELD_SUMMARY, parameters.reasoningSummary());
+            }
             payload.put(FIELD_REASONING, reasoning);
         }
 
@@ -371,6 +390,43 @@ class OpenAiResponsesClient {
         return textBuilder.isEmpty() ? null : textBuilder.toString();
     }
 
+    private static String extractReasoningSummary(JsonNode output) {
+        if (!output.isArray()) {
+            return null;
+        }
+
+        StringBuilder summaryBuilder = new StringBuilder();
+        for (JsonNode item : output) {
+            if (TYPE_REASONING.equals(item.path(FIELD_TYPE).asText())) {
+                JsonNode summaryArray = item.path(FIELD_SUMMARY);
+                if (summaryArray.isArray()) {
+                    for (JsonNode summaryItem : summaryArray) {
+                        if (FIELD_SUMMARY_TEXT.equals(summaryItem.path(FIELD_TYPE).asText())) {
+                            summaryBuilder.append(summaryItem.path(FIELD_TEXT).asText());
+                        }
+                    }
+                }
+            }
+        }
+        return summaryBuilder.isEmpty() ? null : summaryBuilder.toString();
+    }
+
+    private static String extractReasoningEncryptedContent(JsonNode output) {
+        if (!output.isArray()) {
+            return null;
+        }
+
+        for (JsonNode item : output) {
+            if (TYPE_REASONING.equals(item.path(FIELD_TYPE).asText())) {
+                JsonNode encryptedContent = item.path(FIELD_ENCRYPTED_CONTENT);
+                if (!encryptedContent.isMissingNode() && !encryptedContent.isNull()) {
+                    return encryptedContent.asText();
+                }
+            }
+        }
+        return null;
+    }
+
     private static List<ToolExecutionRequest> extractToolExecutionRequests(JsonNode output) {
         if (!output.isArray()) {
             return List.of();
@@ -409,12 +465,16 @@ class OpenAiResponsesClient {
 
         JsonNode inputDetailsNode = usageNode.path(FIELD_INPUT_TOKENS_DETAILS);
         if (!inputDetailsNode.isMissingNode()) {
-            int cachedTokens = inputDetailsNode.path(FIELD_CACHED_TOKENS).asInt();
-            if (cachedTokens > 0) {
-                usageBuilder.inputTokensDetails(OpenAiTokenUsage.InputTokensDetails.builder()
-                        .cachedTokens(cachedTokens)
-                        .build());
-            }
+            usageBuilder.inputTokensDetails(OpenAiTokenUsage.InputTokensDetails.builder()
+                    .cachedTokens(inputDetailsNode.path(FIELD_CACHED_TOKENS).asInt())
+                    .build());
+        }
+
+        JsonNode outputDetailsNode = usageNode.path(FIELD_OUTPUT_TOKENS_DETAILS);
+        if (!outputDetailsNode.isMissingNode()) {
+            usageBuilder.outputTokensDetails(OpenAiTokenUsage.OutputTokensDetails.builder()
+                    .reasoningTokens(outputDetailsNode.path(FIELD_REASONING_TOKENS).asInt())
+                    .build());
         }
 
         return usageBuilder.build();
@@ -435,15 +495,21 @@ class OpenAiResponsesClient {
     private ChatResponse parseChatResponse(SuccessfulHttpResponse rawHttpResponse) throws Exception {
         JsonNode responseNode = OBJECT_MAPPER.readTree(rawHttpResponse.body());
 
-        String text = extractText(responseNode.path(FIELD_OUTPUT));
+        JsonNode outputNode = responseNode.path(FIELD_OUTPUT);
+        String text = extractText(outputNode);
+        String thinking = extractReasoningSummary(outputNode);
+        String encryptedContent = extractReasoningEncryptedContent(outputNode);
         List<ToolExecutionRequest> toolExecutionRequests =
-                extractToolExecutionRequests(responseNode.path(FIELD_OUTPUT));
+                extractToolExecutionRequests(outputNode);
 
-        AiMessage aiMessage = !toolExecutionRequests.isEmpty() && text != null
-                ? new AiMessage(text, toolExecutionRequests)
-                : !toolExecutionRequests.isEmpty()
-                ? AiMessage.from(toolExecutionRequests)
-                : new AiMessage(text == null ? "" : text);
+        AiMessage.Builder aiMessageBuilder = AiMessage.builder()
+                .text(text)
+                .thinking(thinking)
+                .toolExecutionRequests(toolExecutionRequests);
+        if (encryptedContent != null) {
+            aiMessageBuilder.attributes(Map.of(ENCRYPTED_REASONING_KEY, encryptedContent));
+        }
+        AiMessage aiMessage = aiMessageBuilder.build();
 
 
         OpenAiResponsesChatResponseMetadata.Builder metadataBuilder = OpenAiResponsesChatResponseMetadata.builder()
@@ -491,14 +557,33 @@ class OpenAiResponsesClient {
                     contentEntries.add(createInputTextContent(textContent.text()));
                 } else if (content instanceof ImageContent imageContent) {
                     contentEntries.add(createInputImageContent(imageContent.image(), imageContent.detailLevel()));
+                } else if (content instanceof PdfFileContent pdfFileContent) {
+                    contentEntries.add(createInputPdfContent(pdfFileContent));
                 } else {
                     throw new UnsupportedFeatureException("Unsupported content type: "
-                            + content.getClass().getName() + ". Only TextContent and ImageContent are supported.");
+                            + content.getClass().getName()
+                            + ". Only TextContent, ImageContent, and PdfFileContent are supported.");
                 }
             }
             return List.of(createMessageEntry(ROLE_USER, contentEntries));
         } else if (msg instanceof AiMessage aiMessage) {
             List<Map<String, Object>> items = new ArrayList<>();
+
+            String encryptedContent = aiMessage.attribute(ENCRYPTED_REASONING_KEY, String.class);
+            if (encryptedContent != null) {
+                var reasoningItem = new LinkedHashMap<String, Object>();
+                reasoningItem.put(FIELD_TYPE, TYPE_REASONING);
+                reasoningItem.put(FIELD_ENCRYPTED_CONTENT, encryptedContent);
+                List<Map<String, Object>> summaryItems = new ArrayList<>();
+                if (aiMessage.thinking() != null && !aiMessage.thinking().isEmpty()) {
+                    var summaryTextItem = new LinkedHashMap<String, Object>();
+                    summaryTextItem.put(FIELD_TYPE, FIELD_SUMMARY_TEXT);
+                    summaryTextItem.put(FIELD_TEXT, aiMessage.thinking());
+                    summaryItems.add(summaryTextItem);
+                }
+                reasoningItem.put(FIELD_SUMMARY, summaryItems);
+                items.add(reasoningItem);
+            }
 
             var text = aiMessage.text();
             if (text != null && !text.isEmpty()) {
@@ -581,6 +666,20 @@ class OpenAiResponsesClient {
         return content;
     }
 
+    private static Map<String, Object> createInputPdfContent(PdfFileContent pdfFileContent) {
+        var content = new LinkedHashMap<String, Object>();
+        content.put(FIELD_TYPE, TYPE_INPUT_FILE);
+        if (pdfFileContent.pdfFile().url() != null) {
+            content.put(FIELD_FILE_URL, pdfFileContent.pdfFile().url().toString());
+        } else if (pdfFileContent.pdfFile().base64Data() != null) {
+            content.put(FIELD_FILE_DATA, buildPdfFileData(pdfFileContent));
+            content.put(FIELD_FILENAME, DEFAULT_PDF_FILENAME);
+        } else {
+            throw new IllegalArgumentException("PDF must have either url or base64Data");
+        }
+        return content;
+    }
+
     private static String toDetailString(ImageContent.DetailLevel detailLevel) {
         return switch (detailLevel) {
             case LOW -> "low";
@@ -599,6 +698,15 @@ class OpenAiResponsesClient {
             return "data:" + mimeType + ";base64," + image.base64Data();
         } else {
             throw new IllegalArgumentException("Image must have either url or base64Data");
+        }
+    }
+
+    private static String buildPdfFileData(PdfFileContent pdfFileContent) {
+        if (pdfFileContent.pdfFile().base64Data() != null) {
+            return "data:" + pdfFileContent.pdfFile().mimeType() + ";base64,"
+                    + pdfFileContent.pdfFile().base64Data();
+        } else {
+            throw new IllegalArgumentException("PDF must have base64Data");
         }
     }
 
@@ -861,13 +969,19 @@ class OpenAiResponsesClient {
         private void handleResponseCompleted(JsonNode node) {
             var responseNode = node.path(FIELD_RESPONSE);
 
-            String text = extractText(responseNode.path(FIELD_OUTPUT));
+            JsonNode outputNode = responseNode.path(FIELD_OUTPUT);
+            String text = extractText(outputNode);
+            String thinking = extractReasoningSummary(outputNode);
+            String encryptedContent = extractReasoningEncryptedContent(outputNode);
 
-            var aiMessage = !completedToolCalls.isEmpty() && text != null
-                    ? new AiMessage(text, completedToolCalls)
-                    : !completedToolCalls.isEmpty()
-                    ? AiMessage.from(completedToolCalls)
-                    : new AiMessage(text == null ? "" : text);
+            AiMessage.Builder aiMessageBuilder = AiMessage.builder()
+                    .text(text)
+                    .thinking(thinking)
+                    .toolExecutionRequests(completedToolCalls);
+            if (encryptedContent != null) {
+                aiMessageBuilder.attributes(Map.of(ENCRYPTED_REASONING_KEY, encryptedContent));
+            }
+            var aiMessage = aiMessageBuilder.build();
 
             OpenAiResponsesChatResponseMetadata.Builder metadataBuilder = OpenAiResponsesChatResponseMetadata.builder()
                     .id(responseNode.path(FIELD_ID).asText(null))
