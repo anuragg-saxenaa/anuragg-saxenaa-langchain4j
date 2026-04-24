@@ -32,6 +32,7 @@ class Options {
     private Integer numThread;
     private List<String> stop;
     private Double minP;
+    private Integer numThread;
 
     Options() {}
 
@@ -50,6 +51,7 @@ class Options {
         this.numThread = builder.numThread;
         this.stop = builder.stop;
         this.minP = builder.minP;
+        this.numThread = builder.numThread;
     }
 
     public Integer getMirostat() {
@@ -164,6 +166,14 @@ class Options {
         this.minP = minP;
     }
 
+    public Integer getNumThread() {
+        return numThread;
+    }
+
+    public void setNumThread(Integer numThread) {
+        this.numThread = numThread;
+    }
+
     static Builder builder() {
         return new Builder();
     }
@@ -184,6 +194,7 @@ class Options {
         private Integer numThread;
         private List<String> stop;
         private Double minP;
+        private Integer numThread;
 
         Builder mirostat(Integer mirostat) {
             this.mirostat = mirostat;
@@ -252,6 +263,11 @@ class Options {
 
         Builder minP(Double minP) {
             this.minP = minP;
+            return this;
+        }
+
+        Builder numThread(Integer numThread) {
+            this.numThread = numThread;
             return this;
         }
 

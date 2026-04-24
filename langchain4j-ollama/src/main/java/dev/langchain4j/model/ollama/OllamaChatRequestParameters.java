@@ -23,6 +23,7 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
     private final Double minP;
     private final Integer keepAlive;
     private final Boolean think;
+    private final Integer numThread;
 
     private OllamaChatRequestParameters(Builder builder) {
         super(builder);
@@ -37,6 +38,7 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
         this.minP = builder.minP;
         this.keepAlive = builder.keepAlive;
         this.think = builder.think;
+        this.numThread = builder.numThread;
     }
 
     public Integer mirostat() {
@@ -83,6 +85,10 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
         return think;
     }
 
+    public Integer numThread() {
+        return numThread;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -98,7 +104,8 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
                 && Objects.equals(seed, that.seed)
                 && Objects.equals(minP, that.minP)
                 && Objects.equals(keepAlive, that.keepAlive)
-                && Objects.equals(think, that.think);
+                && Objects.equals(think, that.think)
+                && Objects.equals(numThread, that.numThread);
     }
 
     @Override
@@ -115,7 +122,8 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
                 seed,
                 minP,
                 keepAlive,
-                think);
+                think,
+                numThread);
     }
 
     @Override
@@ -143,6 +151,7 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
                 + ", minP=" + minP
                 + ", keepAlive=" + keepAlive
                 + ", think=" + think
+                + ", numThread=" + numThread
                 + '}';
     }
 
@@ -179,6 +188,7 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
         private Double minP;
         private Integer keepAlive;
         private Boolean think;
+        private Integer numThread;
 
         @Override
         public Builder overrideWith(ChatRequestParameters parameters) {
@@ -195,6 +205,7 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
                 minP(getOrDefault(ollamaChatRequestParameters.minP, minP));
                 keepAlive(getOrDefault(ollamaChatRequestParameters.keepAlive, keepAlive));
                 think(getOrDefault(ollamaChatRequestParameters.think, think));
+                numThread(getOrDefault(ollamaChatRequestParameters.numThread, numThread));
             }
             return this;
         }
@@ -305,6 +316,19 @@ public class OllamaChatRequestParameters extends DefaultChatRequestParameters {
          */
         public Builder think(Boolean think) {
             this.think = think;
+            return this;
+        }
+
+        /**
+         * Sets the number of threads to use during computation.
+         * By default, Ollama will detect this for optimal performance.
+         * <p>Critical for CPU-only machines where the default may not be optimal.</p>
+         *
+         * @param numThread the number of CPU threads to use
+         * @return builder
+         */
+        public Builder numThread(Integer numThread) {
+            this.numThread = numThread;
             return this;
         }
 

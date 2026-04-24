@@ -179,6 +179,7 @@ class InternalOllamaHelper {
                         .numThread(requestParameters.numThread())
                         .stop(requestParameters.stopSequences())
                         .minP(requestParameters.minP())
+                        .numThread(requestParameters.numThread())
                         .build())
                 .format(toOllamaResponseFormat(requestParameters.responseFormat()))
                 .stream(stream)
