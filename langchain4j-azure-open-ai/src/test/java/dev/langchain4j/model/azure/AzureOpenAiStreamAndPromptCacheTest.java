@@ -2,13 +2,11 @@ package dev.langchain4j.model.azure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
 import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for stream and promptCacheKey parameters on Azure models.
- * 
+ *
  * These tests verify that the builder methods exist and accept valid parameters.
  * Integration tests with actual Azure credentials are in AzureOpenAiStreamAndPromptCacheIT.
  */
@@ -22,7 +20,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .stream(true);
-        
+
         // The builder should accept this without throwing
         assertThat(builder).isNotNull();
     }
@@ -35,7 +33,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .promptCacheKey("test-cache-key");
-        
+
         assertThat(builder).isNotNull();
     }
 
@@ -47,7 +45,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .promptCacheKey("streaming-cache-key");
-        
+
         assertThat(builder).isNotNull();
     }
 
@@ -60,7 +58,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .deploymentName("test-model")
                 .stream(true)
                 .promptCacheKey("combined-cache-key");
-        
+
         assertThat(builder).isNotNull();
     }
 
@@ -72,7 +70,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .stream(false);
-        
+
         assertThat(builder).isNotNull();
     }
 
@@ -84,7 +82,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .stream(null);
-        
+
         assertThat(builder).isNotNull();
     }
 
@@ -96,7 +94,7 @@ class AzureOpenAiStreamAndPromptCacheTest {
                 .apiKey("test-key")
                 .deploymentName("test-model")
                 .promptCacheKey(null);
-        
+
         assertThat(builder).isNotNull();
     }
 }

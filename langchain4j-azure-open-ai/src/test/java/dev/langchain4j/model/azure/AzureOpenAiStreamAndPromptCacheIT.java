@@ -10,13 +10,13 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 /**
  * Integration tests for Azure OpenAI streaming and prompt cache parameters (issue #5005).
- * 
+ *
  * These tests verify that the stream and promptCacheKey parameters are properly
  * exposed in the SDK builder and can be used when making requests to Azure OpenAI.
- * 
+ *
  * Note: The stream parameter uses an internal SDK workaround (ChatCompletionsOptionsAccessHelper)
  * since setStream() was made private in the Azure SDK to reduce SSE log pollution.
- * 
+ *
  * Note: promptCacheKey relies on Azure OpenAI service-side support and requires
  * deployments with prompt caching enabled.
  */
