@@ -1,17 +1,15 @@
 package dev.langchain4j.service.tool;
 
+import static dev.langchain4j.internal.Utils.copy;
+
 import dev.langchain4j.Internal;
 import dev.langchain4j.agent.tool.ToolSpecification;
-
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.service.tool.search.ToolSearchStrategy;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
-import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.service.tool.search.ToolSearchStrategy;
-
-import static dev.langchain4j.internal.Utils.copy;
 
 @Internal
 public class ToolServiceContext {
@@ -127,19 +125,24 @@ public class ToolServiceContext {
 
     @Override
     public int hashCode() {
-        return Objects.hash(effectiveTools, availableTools, toolExecutors, immediateReturnTools, immediateIfLastReturnTools, dynamicToolProviders);
+        return Objects.hash(
+                effectiveTools,
+                availableTools,
+                toolExecutors,
+                immediateReturnTools,
+                immediateIfLastReturnTools,
+                dynamicToolProviders);
     }
 
     @Override
     public String toString() {
-        return "ToolServiceContext{" +
-                "effectiveTools=" + effectiveTools +
-                ", availableTools=" + availableTools +
-                ", toolExecutors=" + toolExecutors +
-                ", immediateReturnTools=" + immediateReturnTools +
-                ", immediateIfLastReturnTools=" + immediateIfLastReturnTools +
-                ", dynamicToolProviders=" + dynamicToolProviders +
-                '}';
+        return "ToolServiceContext{" + "effectiveTools="
+                + effectiveTools + ", availableTools="
+                + availableTools + ", toolExecutors="
+                + toolExecutors + ", immediateReturnTools="
+                + immediateReturnTools + ", immediateIfLastReturnTools="
+                + immediateIfLastReturnTools + ", dynamicToolProviders="
+                + dynamicToolProviders + '}';
     }
 
     public static Builder builder() {

@@ -5,7 +5,6 @@ import static dev.langchain4j.internal.Utils.copy;
 import dev.langchain4j.agent.tool.ReturnBehavior;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.service.IllegalConfigurationException;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,7 +18,11 @@ public class ToolProviderResult {
     private final Set<String> immediateIfLastReturnToolNames;
 
     public ToolProviderResult(Builder builder) {
-        this(builder.tools, builder.toolsByName, builder.immediateReturnToolNames, builder.immediateIfLastReturnToolNames);
+        this(
+                builder.tools,
+                builder.toolsByName,
+                builder.immediateReturnToolNames,
+                builder.immediateIfLastReturnToolNames);
     }
 
     public ToolProviderResult(Map<ToolSpecification, ToolExecutor> tools) {

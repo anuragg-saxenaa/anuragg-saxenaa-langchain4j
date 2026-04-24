@@ -1,9 +1,9 @@
 package dev.langchain4j.service.tool;
 
+import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
+
 import dev.langchain4j.Internal;
 import dev.langchain4j.agent.tool.ToolSpecification;
-
-import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 
 /**
  * Represents a tool managed by an AI Service, combining:
@@ -41,7 +41,6 @@ public class AiServiceTool {
     public boolean immediateReturn() {
         return immediateReturn;
     }
-
 
     /**
      * Returns {@code true} if this tool is configured with {@link dev.langchain4j.agent.tool.ReturnBehavior#IMMEDIATE_IF_LAST}.
