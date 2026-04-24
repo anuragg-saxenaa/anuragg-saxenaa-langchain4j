@@ -38,14 +38,12 @@ class UserMessageTransformationPipelineTest {
         // given
         Instant fixedTime = Instant.parse("2025-01-15T10:30:00Z");
 
-        UserMessageTransformationPipeline.ContentInjectionStep timestampInjector =
-                (userMessage, invocationContext) -> {
-                    String timestamp = "<!-- timestamp: " + fixedTime + " -->";
-                    return userMessage.toBuilder()
-                            .contents(List.of(TextContent.from(
-                                    timestamp + " " + userMessage.singleText())))
-                            .build();
-                };
+        UserMessageTransformationPipeline.ContentInjectionStep timestampInjector = (userMessage, invocationContext) -> {
+            String timestamp = "<!-- timestamp: " + fixedTime + " -->";
+            return userMessage.toBuilder()
+                    .contents(List.of(TextContent.from(timestamp + " " + userMessage.singleText())))
+                    .build();
+        };
 
         SimpleChat chat = AiServices.builder(SimpleChat.class)
                 .chatModel(chatModel)
@@ -67,14 +65,12 @@ class UserMessageTransformationPipelineTest {
     @Test
     void custom_guardrail_rewriter_should_prepend_system_instructions() {
         // given
-        UserMessageTransformationPipeline.InputGuardrailRewriter systemPrepender =
-                (userMessage, invocationContext) -> {
-                    String prefixedText = "IMPORTANT: Always respond in short sentences. "
-                            + userMessage.singleText();
-                    return userMessage.toBuilder()
-                            .contents(List.of(TextContent.from(prefixedText)))
-                            .build();
-                };
+        UserMessageTransformationPipeline.InputGuardrailRewriter systemPrepender = (userMessage, invocationContext) -> {
+            String prefixedText = "IMPORTANT: Always respond in short sentences. " + userMessage.singleText();
+            return userMessage.toBuilder()
+                    .contents(List.of(TextContent.from(prefixedText)))
+                    .build();
+        };
 
         SimpleChat chat = AiServices.builder(SimpleChat.class)
                 .chatModel(chatModel)
@@ -96,15 +92,13 @@ class UserMessageTransformationPipelineTest {
     @Test
     void multiple_content_injection_steps_should_be_applied_in_order() {
         // given
-        UserMessageTransformationPipeline.ContentInjectionStep step1 =
-                (userMessage, ctx) -> userMessage.toBuilder()
-                        .contents(List.of(TextContent.from("[step1] " + userMessage.singleText())))
-                        .build();
+        UserMessageTransformationPipeline.ContentInjectionStep step1 = (userMessage, ctx) -> userMessage.toBuilder()
+                .contents(List.of(TextContent.from("[step1] " + userMessage.singleText())))
+                .build();
 
-        UserMessageTransformationPipeline.ContentInjectionStep step2 =
-                (userMessage, ctx) -> userMessage.toBuilder()
-                        .contents(List.of(TextContent.from("[step2] " + userMessage.singleText())))
-                        .build();
+        UserMessageTransformationPipeline.ContentInjectionStep step2 = (userMessage, ctx) -> userMessage.toBuilder()
+                .contents(List.of(TextContent.from("[step2] " + userMessage.singleText())))
+                .build();
 
         SimpleChat chat = AiServices.builder(SimpleChat.class)
                 .chatModel(chatModel)
@@ -222,9 +216,8 @@ class UserMessageTransformationPipelineTest {
         AiServiceContext ctx = AiServiceContext.create(SimpleChat.class);
         ctx.userMessageTransformationPipeline = pipeline;
 
-        SimpleChat chat = AiServices.<SimpleChat>builder(ctx)
-                .chatModel(chatModel)
-                .build();
+        SimpleChat chat =
+                AiServices.<SimpleChat>builder(ctx).chatModel(chatModel).build();
 
         // when
         chat.chat("test");

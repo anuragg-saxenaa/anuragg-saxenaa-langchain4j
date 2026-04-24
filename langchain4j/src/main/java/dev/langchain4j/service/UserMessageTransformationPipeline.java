@@ -35,8 +35,7 @@ public class UserMessageTransformationPipeline {
      * Receives the current {@link UserMessage} and method metadata, returns a (potentially modified) one.
      */
     @FunctionalInterface
-    public interface ContentInjectionStep
-            extends BiFunction<UserMessage, InvocationContext, UserMessage> {}
+    public interface ContentInjectionStep extends BiFunction<UserMessage, InvocationContext, UserMessage> {}
 
     /**
      * A step in the input guardrail stage (stage 4).
@@ -44,17 +43,19 @@ public class UserMessageTransformationPipeline {
      * always rewrites the message (returning a new or modified {@link UserMessage}).
      */
     @FunctionalInterface
-    public interface InputGuardrailRewriter
-            extends BiFunction<UserMessage, InvocationContext, UserMessage> {}
+    public interface InputGuardrailRewriter extends BiFunction<UserMessage, InvocationContext, UserMessage> {}
 
     private final List<ContentInjectionStep> contentInjectionSteps;
     private final List<InputGuardrailRewriter> inputGuardrailRewriters;
 
     private UserMessageTransformationPipeline(
-            List<ContentInjectionStep> contentInjectionSteps,
-            List<InputGuardrailRewriter> inputGuardrailRewriters) {
-        this.contentInjectionSteps = contentInjectionSteps != null ? Collections.unmodifiableList(new ArrayList<>(contentInjectionSteps)) : Collections.emptyList();
-        this.inputGuardrailRewriters = inputGuardrailRewriters != null ? Collections.unmodifiableList(new ArrayList<>(inputGuardrailRewriters)) : Collections.emptyList();
+            List<ContentInjectionStep> contentInjectionSteps, List<InputGuardrailRewriter> inputGuardrailRewriters) {
+        this.contentInjectionSteps = contentInjectionSteps != null
+                ? Collections.unmodifiableList(new ArrayList<>(contentInjectionSteps))
+                : Collections.emptyList();
+        this.inputGuardrailRewriters = inputGuardrailRewriters != null
+                ? Collections.unmodifiableList(new ArrayList<>(inputGuardrailRewriters))
+                : Collections.emptyList();
     }
 
     /**
