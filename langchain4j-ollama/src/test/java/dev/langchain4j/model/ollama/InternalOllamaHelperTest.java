@@ -60,9 +60,8 @@ class InternalOllamaHelperTest {
 
     @Test
     void toOllamaChatRequest_omitsNumThreadWhenNull() {
-        OllamaChatRequestParameters parameters = OllamaChatRequestParameters.builder()
-                .modelName("llama3")
-                .build();
+        OllamaChatRequestParameters parameters =
+                OllamaChatRequestParameters.builder().modelName("llama3").build();
 
         dev.langchain4j.model.chat.request.ChatRequest chatRequest =
                 dev.langchain4j.model.chat.request.ChatRequest.builder()
