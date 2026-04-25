@@ -2,6 +2,7 @@ package dev.langchain4j.model.openai;
 
 import static dev.langchain4j.internal.RetryUtils.withRetryMappingExceptions;
 import static dev.langchain4j.internal.Utils.copy;
+import static dev.langchain4j.internal.Utils.isNullOrEmpty;
 import static dev.langchain4j.internal.Utils.getOrDefault;
 import static dev.langchain4j.model.ModelProvider.OPEN_AI;
 import static dev.langchain4j.model.chat.Capability.RESPONSE_FORMAT_JSON_SCHEMA;
@@ -157,6 +158,11 @@ public class OpenAiChatModel implements ChatModel {
                 () -> client.chatCompletion(openAiRequest).executeRaw(), maxRetries);
 
         ChatCompletionResponse openAiResponse = parsedAndRawResponse.parsedResponse();
+
+        List<ChatCompletionChoice> choices = openAiResponse.choices();
+        if (isNullOrEmpty(choices)) {
+            throw new IllegalArgumentException("OpenAI response has no choices");
+        }
 
         OpenAiChatResponseMetadata responseMetadata = OpenAiChatResponseMetadata.builder()
                 .id(openAiResponse.id())
