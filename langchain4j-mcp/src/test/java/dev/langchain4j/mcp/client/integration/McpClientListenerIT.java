@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,10 @@ public class McpClientListenerIT {
 
     static McpClient mcpClient;
     static TestListener testListener;
+    static volatile boolean openCalled = false;
+    static volatile boolean closeCalled = false;
+    static volatile ToolExecutionRequest lastToolExecutionRequest;
+    static volatile ToolExecutionResult lastToolCallResult;
 
     @BeforeAll
     static void setup() {
@@ -47,6 +52,7 @@ public class McpClientListenerIT {
         mcpClient = new DefaultMcpClient.Builder()
                 .transport(transport)
                 .addListener(testListener)
+                .addListener(new OpenCloseListener())
                 .toolExecutionTimeout(Duration.ofSeconds(4))
                 .build();
     }
@@ -54,6 +60,21 @@ public class McpClientListenerIT {
     @BeforeEach
     void beforeEach() {
         testListener.clear();
+        lastToolExecutionRequest = null;
+        lastToolCallResult = null;
+    }
+
+    @AfterAll
+    static void teardown() throws Exception {
+        // Check if tests were skipped (jbang not available)
+        if (mcpClient == null) {
+            // Tests were skipped, nothing to tear down
+            return;
+        }
+        assertThat(openCalled).isTrue();
+        assertThat(closeCalled).isFalse(); // close not called yet
+        mcpClient.close();
+        assertThat(closeCalled).isTrue();
     }
 
     @Test
@@ -193,6 +214,36 @@ public class McpClientListenerIT {
         }
     }
 
+    @Test
+    public void onToolCallExecutedSuccess() {
+        ToolExecutionRequest request =
+                ToolExecutionRequest.builder().name("nothing").build();
+        ToolExecutionResult result = mcpClient.executeTool(request);
+        assertThat(result.isError()).isFalse();
+
+        // check that onToolCallExecuted was invoked with correct data
+        assertThat(lastToolExecutionRequest).isNotNull();
+        assertThat(lastToolExecutionRequest.name()).isEqualTo("nothing");
+        assertThat(lastToolCallResult).isNotNull();
+        assertThat(lastToolCallResult.resultText()).isEqualTo("OK");
+    }
+
+    @Test
+    public void onToolCallExecutedError() {
+        try {
+            ToolExecutionRequest request =
+                    ToolExecutionRequest.builder().name("withProtocolError").build();
+            mcpClient.executeTool(request);
+        } catch (Exception expected) {
+            // expected
+        }
+
+        // check that onToolCallExecuted was invoked with null result on error
+        assertThat(lastToolExecutionRequest).isNotNull();
+        assertThat(lastToolExecutionRequest.name()).isEqualTo("withProtocolError");
+        assertThat(lastToolCallResult).isNull();
+    }
+
     static class TestListener implements McpClientListener {
 
         volatile McpCallContext toolContext;
@@ -284,6 +335,26 @@ public class McpClientListenerIT {
             promptResultContext = null;
             promptErrorContext = null;
             promptError = null;
+        }
+    }
+
+    static class OpenCloseListener implements McpClientListener {
+
+        @Override
+        public void open() {
+            openCalled = true;
+        }
+
+        @Override
+        public void close() {
+            closeCalled = true;
+        }
+
+        @Override
+        public void onToolCallExecuted(
+                McpCallContext context, ToolExecutionRequest executionRequest, ToolExecutionResult result) {
+            lastToolExecutionRequest = executionRequest;
+            lastToolCallResult = result;
         }
     }
 }

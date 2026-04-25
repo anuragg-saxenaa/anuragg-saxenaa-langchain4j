@@ -206,6 +206,7 @@ public class DefaultMcpClient implements McpClient {
             JsonNode capabilities =
                     transport.initialize(request).get(initializationTimeout.toMillis(), TimeUnit.MILLISECONDS);
             log.debug("MCP server capabilities: {}", capabilities.get("result"));
+            notifyListeners(McpClientListener::open);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
@@ -294,12 +295,16 @@ public class DefaultMcpClient implements McpClient {
             result = resultFuture.get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException timeout) {
             notifyListeners(l -> l.onExecuteToolError(context, timeout));
+            ToolExecutionResult timeoutResult =
+                    ToolExecutionHelper.extractResult(RESULT_TIMEOUT, false, toolResultExtractor);
+            notifyListeners(l -> l.onToolCallExecuted(context, executionRequest, timeoutResult));
             McpCancellationNotification cancellation = new McpCancellationNotification(operationId, "Timeout");
             applyMeta(cancellation, null);
             transport.executeOperationWithoutResponse(cancellation);
-            return ToolExecutionHelper.extractResult(RESULT_TIMEOUT, false, toolResultExtractor);
+            return timeoutResult;
         } catch (ExecutionException e) {
             notifyListeners(l -> l.onExecuteToolError(context, e));
+            notifyListeners(l -> l.onToolCallExecuted(context, executionRequest, null));
             throw new ToolExecutionException(e.getCause());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -312,6 +317,7 @@ public class DefaultMcpClient implements McpClient {
             ToolExecutionResult toolResult = ToolExecutionHelper.extractResult(finalResult, false, toolResultExtractor);
             notifyListeners(l -> l.afterExecuteTool(
                     context, toolResult, (Map<String, Object>) ToolExecutionHelper.toObject(finalResult)));
+            notifyListeners(l -> l.onToolCallExecuted(context, executionRequest, toolResult));
             return toolResult;
         } catch (ToolExecutionException e) {
             if (e.errorCode() != null) {
@@ -325,6 +331,7 @@ public class DefaultMcpClient implements McpClient {
                         ToolExecutionHelper.extractResult(finalResult, true, toolResultExtractor),
                         (Map<String, Object>) ToolExecutionHelper.toObject(finalResult)));
             }
+            notifyListeners(l -> l.onToolCallExecuted(context, executionRequest, null));
             throw e;
         }
     }
@@ -667,6 +674,7 @@ public class DefaultMcpClient implements McpClient {
     @Override
     public void close() {
         closed = true;
+        notifyListeners(McpClientListener::close);
         if (healthCheckScheduler != null) {
             healthCheckScheduler.shutdownNow();
         }
