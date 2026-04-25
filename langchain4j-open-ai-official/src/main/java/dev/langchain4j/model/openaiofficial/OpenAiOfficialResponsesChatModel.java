@@ -115,6 +115,8 @@ public class OpenAiOfficialResponsesChatModel implements ChatModel {
                 .strictTools(getOrDefault(builder.strictTools, responsesParameters.strictTools()))
                 .strictJsonSchema(getOrDefault(builder.strictJsonSchema, responsesParameters.strictJsonSchema()))
                 .serverTools(getOrDefault(builder.serverTools, responsesParameters.serverTools()))
+                .namespaces(getOrDefault(builder.namespaces, responsesParameters.namespaces()))
+                .toolMetadataKeysToSend(getOrDefault(builder.toolMetadataKeysToSend, responsesParameters.toolMetadataKeysToSend()))
                 .build();
 
         this.listeners = copy(builder.listeners);
@@ -223,6 +225,9 @@ public class OpenAiOfficialResponsesChatModel implements ChatModel {
         private ResponseFormat responseFormat;
         private ChatRequestParameters defaultRequestParameters;
         private List<Tool> serverTools;
+        private List<String> namespaces;
+        private List<String> toolMetadataKeysToSend;
+
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
@@ -433,6 +438,35 @@ public class OpenAiOfficialResponsesChatModel implements ChatModel {
 
         public Builder serverTools(Tool... serverTools) {
             return serverTools(asList(serverTools));
+        }
+
+        /**
+         * Sets the list of namespaces for hosted tool search.
+         * <p>
+         * Namespaces allow grouping tools and can be searched by the model
+         * when using the tool_search server tool.
+         *
+         * @param namespaces the list of namespace names
+         * @return this builder
+         */
+        public Builder namespaces(List<String> namespaces) {
+            this.namespaces = namespaces;
+            return this;
+        }
+
+
+        /**
+         * Sets the metadata keys to include when sending tool specifications.
+         * <p>
+         * This allows selective inclusion of tool metadata fields, such as
+         * {@code "defer_loading"} for deferred function loading.
+         *
+         * @param toolMetadataKeysToSend the list of metadata keys to send
+         * @return this builder
+         */
+        public Builder toolMetadataKeysToSend(List<String> toolMetadataKeysToSend) {
+            this.toolMetadataKeysToSend = toolMetadataKeysToSend;
+            return this;
         }
 
         public OpenAiOfficialResponsesChatModel build() {
