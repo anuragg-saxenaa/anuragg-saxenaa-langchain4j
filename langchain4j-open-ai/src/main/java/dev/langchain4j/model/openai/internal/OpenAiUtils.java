@@ -51,6 +51,7 @@ import dev.langchain4j.model.openai.OpenAiTokenUsage;
 import dev.langchain4j.model.openai.OpenAiTokenUsage.InputTokensDetails;
 import dev.langchain4j.model.openai.OpenAiTokenUsage.OutputTokensDetails;
 import dev.langchain4j.model.openai.internal.chat.AssistantMessage;
+import dev.langchain4j.model.openai.internal.chat.ChatCompletionChoice;
 import dev.langchain4j.model.openai.internal.chat.ChatCompletionRequest;
 import dev.langchain4j.model.openai.internal.chat.ChatCompletionResponse;
 import dev.langchain4j.model.openai.internal.chat.ContentType;
