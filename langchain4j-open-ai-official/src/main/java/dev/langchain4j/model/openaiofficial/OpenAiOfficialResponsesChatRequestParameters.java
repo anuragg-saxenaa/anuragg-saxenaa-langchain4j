@@ -37,6 +37,8 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
     private final Boolean strictTools;
     private final Boolean strictJsonSchema;
     private final List<Tool> serverTools;
+    private final List<String> namespaces;
+    private final List<String> toolMetadataKeysToSend;
 
     private OpenAiOfficialResponsesChatRequestParameters(Builder builder) {
         super(builder);
@@ -58,6 +60,8 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
         this.strictTools = builder.strictTools;
         this.strictJsonSchema = builder.strictJsonSchema;
         this.serverTools = copy(builder.serverTools);
+        this.namespaces = copy(builder.namespaces);
+        this.toolMetadataKeysToSend = copy(builder.toolMetadataKeysToSend);
     }
 
     public String previousResponseId() {
@@ -132,6 +136,30 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
         return serverTools;
     }
 
+    /**
+     * Returns the list of namespaces for hosted tool search.
+     * <p>
+     * Namespaces allow grouping tools and can be searched by the model
+     * when using the tool_search server tool.
+     *
+     * @return the list of namespaces, or null if not set
+     */
+    public List<String> namespaces() {
+        return namespaces;
+    }
+
+    /**
+     * Returns the metadata keys to include when sending tool specifications.
+     * <p>
+     * This allows selective inclusion of tool metadata fields, such as
+     * {@code "defer_loading"} for deferred function loading.
+     *
+     * @return the list of metadata keys to send, or null if not set
+     */
+    public List<String> toolMetadataKeysToSend() {
+        return toolMetadataKeysToSend;
+    }
+
     @Override
     public OpenAiOfficialResponsesChatRequestParameters overrideWith(ChatRequestParameters that) {
         return OpenAiOfficialResponsesChatRequestParameters.builder()
@@ -171,7 +199,9 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
                 && Objects.equals(store, that.store)
                 && Objects.equals(strictTools, that.strictTools)
                 && Objects.equals(strictJsonSchema, that.strictJsonSchema)
-                && Objects.equals(serverTools, that.serverTools);
+                && Objects.equals(serverTools, that.serverTools)
+                && Objects.equals(namespaces, that.namespaces)
+                && Objects.equals(toolMetadataKeysToSend, that.toolMetadataKeysToSend);
     }
 
     @Override
@@ -195,7 +225,9 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
                 store,
                 strictTools,
                 strictJsonSchema,
-                serverTools);
+                serverTools,
+                namespaces,
+                toolMetadataKeysToSend);
     }
 
     public static Builder builder() {
@@ -222,6 +254,9 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
         private Boolean strictTools;
         private Boolean strictJsonSchema;
         private List<Tool> serverTools;
+        private List<String> namespaces;
+        private List<String> toolMetadataKeysToSend;
+
 
         @Override
         public Builder overrideWith(ChatRequestParameters parameters) {
@@ -245,6 +280,8 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
                 strictTools(getOrDefault(p.strictTools(), strictTools));
                 strictJsonSchema(getOrDefault(p.strictJsonSchema(), strictJsonSchema));
                 serverTools(getOrDefault(p.serverTools(), serverTools));
+                namespaces(getOrDefault(p.namespaces(), namespaces));
+                toolMetadataKeysToSend(getOrDefault(p.toolMetadataKeysToSend(), toolMetadataKeysToSend));
             }
             return this;
         }
@@ -336,6 +373,34 @@ public class OpenAiOfficialResponsesChatRequestParameters extends DefaultChatReq
 
         public Builder serverTools(List<Tool> serverTools) {
             this.serverTools = serverTools;
+            return this;
+        }
+
+        /**
+         * Sets the list of namespaces for hosted tool search.
+         * <p>
+         * Namespaces allow grouping tools and can be searched by the model
+         * when using the tool_search server tool.
+         *
+         * @param namespaces the list of namespace names
+         * @return this builder
+         */
+        public Builder namespaces(List<String> namespaces) {
+            this.namespaces = namespaces;
+            return this;
+        }
+
+        /**
+         * Sets the metadata keys to include when sending tool specifications.
+         * <p>
+         * This allows selective inclusion of tool metadata fields, such as
+         * {@code "defer_loading"} for deferred function loading.
+         *
+         * @param toolMetadataKeysToSend the list of metadata keys to send
+         * @return this builder
+         */
+        public Builder toolMetadataKeysToSend(List<String> toolMetadataKeysToSend) {
+            this.toolMetadataKeysToSend = toolMetadataKeysToSend;
             return this;
         }
 
