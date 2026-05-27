@@ -55,6 +55,9 @@ public class AiServiceContext {
 
     public BiFunction<ChatRequest, Object, ChatRequest> chatRequestTransformer = (req, memId) -> req;
 
+    public UserMessageTransformationPipeline userMessageTransformationPipeline =
+            UserMessageTransformationPipeline.empty();
+
     protected AiServiceContext(Class<?> aiServiceClass) {
         this.aiServiceClass = aiServiceClass;
         this.guardrailServiceBuilder = GuardrailService.builder(aiServiceClass);
