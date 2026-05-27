@@ -117,7 +117,15 @@ public abstract class AbstractServiceBuilder<T, S> {
     }
 
     public S subAgents(Collection<?> agents) {
-        addSubagents(agentsToExecutors(agents));
+        List<AgentExecutor> executors = new ArrayList<>();
+        for (Object agent : agents) {
+            if (agent instanceof Class<?>) {
+                executors.add(AgentUtil.agentToExecutor((Class<?>) agent));
+            } else {
+                executors.add(AgentUtil.agentToExecutor(agent));
+            }
+        }
+        addSubagents(executors);
         return (S) this;
     }
 
