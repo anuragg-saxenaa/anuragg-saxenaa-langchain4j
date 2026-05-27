@@ -19,6 +19,104 @@ import org.junit.jupiter.api.Test;
 class OpenAiOfficialResponsesStreamingChatModelTest {
 
     @Test
+    void should_store_namespaces_in_streaming_default_request_parameters() {
+        Tool toolSearch = OpenAiOfficialServerTool.toolSearch();
+        List<String> namespaces = List.of("crm", "inventory");
+
+        OpenAiOfficialResponsesStreamingChatModel model = OpenAiOfficialResponsesStreamingChatModel.builder()
+                .modelName("gpt-5.4-mini")
+                .apiKey("banana")
+                .serverTools(toolSearch)
+                .namespaces(namespaces)
+                .build();
+
+        OpenAiOfficialResponsesChatRequestParameters parameters =
+                (OpenAiOfficialResponsesChatRequestParameters) model.defaultRequestParameters();
+
+
+        assertThat(parameters.namespaces()).containsExactly("crm", "inventory");
+    }
+
+
+    @Test
+    void should_store_tool_metadata_keys_to_send_in_streaming_default_request_parameters() {
+        Tool toolSearch = OpenAiOfficialServerTool.toolSearch();
+        List<String> metadataKeys = List.of("defer_loading", "category");
+
+
+        OpenAiOfficialResponsesStreamingChatModel model = OpenAiOfficialResponsesStreamingChatModel.builder()
+                .modelName("gpt-5.4-mini")
+                .apiKey("banana")
+                .serverTools(toolSearch)
+                .toolMetadataKeysToSend(metadataKeys)
+                .build();
+
+        OpenAiOfficialResponsesChatRequestParameters parameters =
+                (OpenAiOfficialResponsesChatRequestParameters) model.defaultRequestParameters();
+
+
+        assertThat(parameters.toolMetadataKeysToSend()).containsExactly("defer_loading", "category");
+    }
+
+    @Test
+    void should_store_namespaces_and_metadata_keys_in_chat_default_request_parameters() {
+        Tool toolSearch = OpenAiOfficialServerTool.toolSearch();
+        List<String> namespaces = List.of("sales");
+        List<String> metadataKeys = List.of("defer_loading");
+
+        OpenAiOfficialResponsesChatModel model = OpenAiOfficialResponsesChatModel.builder()
+                .modelName("gpt-5.4-mini")
+                .apiKey("banana")
+                .serverTools(toolSearch)
+                .namespaces(namespaces)
+                .toolMetadataKeysToSend(metadataKeys)
+                .build();
+
+        OpenAiOfficialResponsesChatRequestParameters parameters =
+                (OpenAiOfficialResponsesChatRequestParameters) model.defaultRequestParameters();
+
+
+        assertThat(parameters.namespaces()).containsExactly("sales");
+        assertThat(parameters.toolMetadataKeysToSend()).containsExactly("defer_loading");
+    }
+
+    @Test
+    void should_merge_namespaces_in_request_parameters() {
+        OpenAiOfficialResponsesChatRequestParameters defaults =
+                OpenAiOfficialResponsesChatRequestParameters.builder()
+                        .modelName("gpt-5.4-mini")
+                        .namespaces(List.of("crm", "inventory"))
+                        .build();
+
+        OpenAiOfficialResponsesChatRequestParameters override =
+                OpenAiOfficialResponsesChatRequestParameters.builder()
+                        .namespaces(List.of("sales"))
+                        .build();
+
+        OpenAiOfficialResponsesChatRequestParameters merged = defaults.overrideWith(override);
+
+        assertThat(merged.namespaces()).containsExactly("sales");
+    }
+
+    @Test
+    void should_merge_tool_metadata_keys_in_request_parameters() {
+        OpenAiOfficialResponsesChatRequestParameters defaults =
+                OpenAiOfficialResponsesChatRequestParameters.builder()
+                        .modelName("gpt-5.4-mini")
+                        .toolMetadataKeysToSend(List.of("defer_loading", "category"))
+                        .build();
+
+        OpenAiOfficialResponsesChatRequestParameters override =
+                OpenAiOfficialResponsesChatRequestParameters.builder()
+                        .toolMetadataKeysToSend(List.of("priority"))
+                        .build();
+
+        OpenAiOfficialResponsesChatRequestParameters merged = defaults.overrideWith(override);
+
+        assertThat(merged.toolMetadataKeysToSend()).containsExactly("priority");
+    }
+
+    @Test
     void should_store_server_tools_in_streaming_default_request_parameters() {
         Tool webSearch = webSearchTool();
 
